@@ -135,3 +135,7 @@ frontend/coverage/
 aicodex
 output/
 
+".env" 
+"backend/internal/pkg/geminicli/constants.go" 
+"backend/internal/pkg/antigravity/oauth.go" 
+"backend/internal/pkg/antigravity/oauth_test.go" 
