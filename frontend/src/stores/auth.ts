@@ -51,6 +51,9 @@ export const useAuthStore = defineStore('auth', () => {
     const savedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
     const savedExpiresAt = localStorage.getItem(TOKEN_EXPIRES_AT_KEY)
 
+    // Start cross-tab sync to prevent state mixing between different accounts
+    setupCrossTabSync()
+
     if (savedToken && savedUser) {
       try {
         token.value = savedToken
@@ -381,6 +384,35 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem(AUTH_USER_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(TOKEN_EXPIRES_AT_KEY)
+  }
+
+  /**
+   * Listen for auth changes from other tabs via the storage event.
+   * Prevents state mixing when different accounts are logged in across tabs.
+   */
+  function setupCrossTabSync(): void {
+    window.addEventListener('storage', (e: StorageEvent) => {
+      if (e.key !== AUTH_TOKEN_KEY) return
+
+      if (!e.newValue) {
+        // Another tab logged out
+        stopAutoRefresh()
+        stopTokenRefresh()
+        token.value = null
+        refreshTokenValue.value = null
+        tokenExpiresAt.value = null
+        user.value = null
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login'
+        }
+        return
+      }
+
+      if (e.newValue !== token.value) {
+        // Another tab logged in as a different user — reload to sync
+        window.location.reload()
+      }
+    })
   }
 
   // ==================== Return Store API ====================

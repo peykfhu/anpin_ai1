@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnPin AI - 智能大模型聚合网关</title>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #8b5cf6;
+            --accent2: #6d28d9;
+            --card: #ffffff;
+            --nav-bg: rgba(255,255,255,0.82);
+        }
+        *{margin:0;padding:0;box-sizing:border-box}
+        a{text-decoration:none;color:inherit}
+        body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;background:var(--bg);color:var(--text)}
+
+        /* ---- 背景 ---- */
+        .page-wrap{min-height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden}
+        .bg-grid{position:absolute;inset:0;background-image:radial-gradient(#d1d5db 1px,transparent 1px);background-size:32px 32px;opacity:.35;z-index:0}
+        .bg-glow{position:absolute;top:38%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;background:radial-gradient(circle,rgba(139,92,246,.06) 0%,transparent 70%);z-index:0;pointer-events:none}
+
+        /* ---- 同心圆 ---- */
+        .circles{position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);z-index:0;pointer-events:none}
+        .circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;border:1px dashed rgba(0,0,0,.05)}
+        .c1{width:300px;height:300px}.c2{width:550px;height:550px}.c3{width:800px;height:800px}
+
+        /* ---- 导航 ---- */
+        .nav{display:flex;justify-content:space-between;align-items:center;padding:18px 40px;position:relative;z-index:10}
+        .nav-logo{font-size:1.2rem;font-weight:800;display:flex;align-items:center;gap:10px;letter-spacing:-.5px}
+        .logo-box{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+        .nav-links{display:flex;gap:22px;align-items:center;background:var(--nav-bg);backdrop-filter:blur(12px);padding:8px 28px;border-radius:40px;border:1px solid rgba(0,0,0,.05);box-shadow:0 4px 20px rgba(0,0,0,.02);font-size:.88rem;font-weight:500}
+        .nav-links a{color:var(--text);transition:color .2s;display:flex;align-items:center;gap:6px}
+        .nav-links a:hover{color:var(--accent)}
+        .dot-green{width:6px;height:6px;background:#10b981;border-radius:50%;display:inline-block}
+        .btn-console{background:#1f2937;color:#fff;padding:8px 20px;border-radius:30px;display:flex;align-items:center;gap:8px;font-size:.88rem;font-weight:600;transition:all .3s}
+        .btn-console:hover{background:#000;transform:translateY(-1px)}
+
+        /* ---- Hero ---- */
+        .hero{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;position:relative;z-index:10;padding:0 20px}
+        .hero-badge{background:rgba(255,255,255,.7);backdrop-filter:blur(5px);border:1px solid var(--border);padding:6px 16px;border-radius:30px;font-size:.78rem;color:var(--muted);margin-bottom:24px;display:flex;align-items:center;gap:6px}
+        .hero-title{font-size:clamp(3rem,8vw,5.5rem);font-weight:900;letter-spacing:-3px;line-height:1.1;margin-bottom:18px}
+        .hero-sub{font-size:1.4rem;color:var(--muted);margin-bottom:40px;font-weight:300;letter-spacing:2px}
+        .cursor{color:var(--accent);animation:blink 1s step-end infinite}
+        @keyframes blink{50%{opacity:0}}
+        .btn-main{background:#18181b;color:#fff;font-size:1.05rem;padding:14px 38px;border-radius:12px;font-weight:600;transition:all .3s;box-shadow:0 10px 25px rgba(0,0,0,.1);display:inline-block}
+        .btn-main:hover{background:#000;transform:translateY(-2px);box-shadow:0 15px 35px rgba(0,0,0,.18)}
+
+        /* ---- 特性卡片 ---- */
+        .features{position:relative;z-index:10;max-width:1100px;margin:60px auto 0;padding:0 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+        .feat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 24px;transition:all .3s}
+        .feat-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.06)}
+        .feat-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+        .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
+        .feat-card p{font-size:.85rem;color:var(--muted);line-height:1.6}
+
+        /* ---- 底部 ---- */
+        .bottom{padding:40px 20px;text-align:center;position:relative;z-index:10}
+        .pills{display:flex;gap:12px;justify-content:center;margin-bottom:30px;flex-wrap:wrap}
+        .pill{background:#fff;border:1px solid var(--border);padding:6px 14px;border-radius:30px;font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px}
+        .footer{width:100%;max-width:1100px;margin:0 auto;border-top:1px solid var(--border);padding-top:20px;display:flex;justify-content:space-between;font-size:.8rem;color:#9ca3af;flex-wrap:wrap;gap:10px}
+        .footer-links{display:flex;gap:20px}
+        .footer-links a:hover{color:var(--accent)}
+
+        /* ---- 响应式 ---- */
+        @media(max-width:768px){
+            .nav{padding:14px 16px;flex-wrap:wrap;gap:10px}
+            .nav-links{display:none}
+            .features{grid-template-columns:1fr}
+            .hero-title{letter-spacing:-1px}
+            .footer{flex-direction:column;align-items:center;text-align:center}
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+    <div class="circles"><div class="circle c1"></div><div class="circle c2"></div><div class="circle c3"></div></div>
+
+    <header class="nav">
+        <div class="nav-logo"><div class="logo-box">AP</div> AnPin AI</div>
+        <nav class="nav-links">
+            <a href="/home"><span class="dot-green"></span> 首页</a>
+            <a href="/pricing">模型广场</a>
+            <a href="/tutorial">教程</a>
+            <a href="/docs">文档</a>
+        </nav>
+        <a href="/login" class="btn-console">控制台 ↗</a>
+    </header>
+
+    <main class="hero">
+        <div class="hero-badge"><span style="color:var(--accent)">●</span> AI API Gateway · 全球加速</div>
+        <h1 class="hero-title">AnPin AI</h1>
+        <div class="hero-sub"><span id="tw"></span><span class="cursor">|</span></div>
+        <a href="/login" class="btn-main">进入控制台 &rarr;</a>
+    </main>
+
+    <section class="features">
+        <div class="feat-card">
+            <div class="feat-icon" style="background:#f0fdf4;color:#16a34a">⚡</div>
+            <h3>极速响应</h3>
+            <p>全球多节点部署，智能路由选择最优线路，确保 API 调用毫秒级响应。</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon" style="background:#eff6ff;color:#2563eb">🔗</div>
+            <h3>多模型聚合</h3>
+            <p>一个 API Key 接入 Claude、GPT、Gemini、DeepSeek 等主流大模型。</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon" style="background:#fef3c7;color:#d97706">🛡️</div>
+            <h3>高可用保障</h3>
+            <p>智能负载均衡与故障自动切换，服务可用性 99.9% 以上。</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon" style="background:#f5f3ff;color:#7c3aed">📊</div>
+            <h3>透明计费</h3>
+            <p>按实际用量计费，详细的用量报表与实时余额提醒，消费一目了然。</p>
+        </div>
+    </section>
+
+    <div class="bottom">
+        <div class="pills">
+            <div class="pill"><span style="color:#f97316">●</span> Claude</div>
+            <div class="pill"><span style="color:#10b981">●</span> GPT</div>
+            <div class="pill"><span style="color:#3b82f6">●</span> Gemini</div>
+            <div class="pill"><span style="color:#8b5cf6">●</span> DeepSeek</div>
+        </div>
+        <footer class="footer">
+            <div>&copy; 2026 AnPin AI. 保留所有权利.</div>
+            <div class="footer-links">
+                <a href="/docs">文档</a>
+                <a href="/terms">服务条款</a>
+                <a href="/privacy">隐私政策</a>
+                <a href="/aup">使用政策</a>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script>
+const words=["代码洪流，无畏挑战","智能负载，极致稳定","聚合全球，一站接入"];
+let i=0,j=0,del=false;
+function tick(){
+    const w=words[i];
+    document.getElementById("tw").textContent=w.substring(0,del?--j:++j);
+    if(!del&&j===w.length){del=true;setTimeout(tick,1500);return}
+    if(del&&j===0){del=false;i=(i+1)%words.length}
+    setTimeout(tick,del?60:150);
+}
+document.addEventListener("DOMContentLoaded",()=>setTimeout(tick,800));
+</script>
+</body>
+</html>
