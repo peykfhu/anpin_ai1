@@ -68,7 +68,7 @@ type ReferralInfo struct {
 }
 
 type InviteRecord struct {
-	ID              int       `json:"id"`
+	ID              int64     `json:"id"`
 	InviteeEmail    string    `json:"invitee_email"`
 	InviteeUsername string    `json:"invitee_username"`
 	RegisteredAt    time.Time `json:"registered_at"`
@@ -78,7 +78,7 @@ type InviteRecord struct {
 }
 
 type CommissionRecord struct {
-	ID               int       `json:"id"`
+	ID               int64     `json:"id"`
 	InviteeEmail     string    `json:"invitee_email"`
 	InviteeUsername  string    `json:"invitee_username"`
 	OrderID          string    `json:"order_id"`
