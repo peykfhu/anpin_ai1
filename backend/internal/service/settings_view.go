@@ -118,6 +118,10 @@ type SystemSettings struct {
 	// Account quota notification
 	AccountQuotaNotifyEnabled bool
 	AccountQuotaNotifyEmails  []NotifyEmailEntry
+
+	// Referral/Commission system
+	ReferralEnabled        bool
+	ReferralCommissionRate float64
 }
 
 type DefaultSubscriptionSetting struct {

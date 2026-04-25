@@ -71,6 +71,7 @@ type AuthService struct {
 	emailQueueService  *EmailQueueService
 	promoService       *PromoService
 	defaultSubAssigner DefaultSubscriptionAssigner
+	referralService    *ReferralService
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -90,6 +91,7 @@ func NewAuthService(
 	emailQueueService *EmailQueueService,
 	promoService *PromoService,
 	defaultSubAssigner DefaultSubscriptionAssigner,
+	referralService *ReferralService,
 ) *AuthService {
 	return &AuthService{
 		entClient:          entClient,
@@ -103,16 +105,17 @@ func NewAuthService(
 		emailQueueService:  emailQueueService,
 		promoService:       promoService,
 		defaultSubAssigner: defaultSubAssigner,
+		referralService:    referralService,
 	}
 }
 
 // Register 用户注册，返回token和用户
 func (s *AuthService) Register(ctx context.Context, email, password string) (string, *User, error) {
-	return s.RegisterWithVerification(ctx, email, password, "", "", "")
+	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
 }
 
-// RegisterWithVerification 用户注册（支持邮件验证、优惠码和邀请码），返回token和用户
-func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode string) (string, *User, error) {
+// RegisterWithVerification 用户注册（支持邮件验证、优惠码、邀请码和推荐码），返回token和用户
+func (s *AuthService) RegisterWithVerification(ctx context.Context, email, password, verifyCode, promoCode, invitationCode, referralCode string) (string, *User, error) {
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
@@ -224,6 +227,13 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			if updatedUser, err := s.userRepo.GetByID(ctx, user.ID); err == nil {
 				user = updatedUser
 			}
+		}
+	}
+
+	// 绑定推荐人（如果提供了推荐码且返佣系统已启用）
+	if referralCode != "" && s.referralService != nil && s.referralService.IsEnabled(ctx) {
+		if err := s.referralService.BindReferrer(ctx, user.ID, referralCode); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to bind referrer for user %d: %v", user.ID, err)
 		}
 	}
 
@@ -437,7 +447,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 //
 // 注意：该函数用于 LinuxDo OAuth 登录场景（不同于上游账号的 OAuth，例如 Claude/OpenAI/Gemini）。
 // 为了满足现有数据库约束（需要密码哈希），新用户会生成随机密码并进行哈希保存。
-func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username string) (string, *User, error) {
+func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username, referralCode string) (string, *User, error) {
 	email = strings.TrimSpace(email)
 	if email == "" || len(email) > 255 {
 		return "", nil, infraerrors.BadRequest("INVALID_EMAIL", "invalid email")
@@ -502,6 +512,13 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			} else {
 				user = newUser
 				s.assignDefaultSubscriptions(ctx, user.ID)
+
+				// 绑定推荐人（如果提供了推荐码且返佣系统已启用）
+				if referralCode != "" && s.referralService != nil && s.referralService.IsEnabled(ctx) {
+					if err := s.referralService.BindReferrer(ctx, user.ID, referralCode); err != nil {
+						logger.LegacyPrintf("service.auth", "[Auth] Failed to bind referrer for oauth user %d: %v", user.ID, err)
+					}
+				}
 			}
 		} else {
 			logger.LegacyPrintf("service.auth", "[Auth] Database error during oauth login: %v", err)
@@ -531,7 +548,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 // LoginOrRegisterOAuthWithTokenPair 用于第三方 OAuth/SSO 登录，返回完整的 TokenPair。
 // 与 LoginOrRegisterOAuth 功能相同，但返回 TokenPair 而非单个 token。
 // invitationCode 仅在邀请码注册模式下新用户注册时使用；已有账号登录时忽略。
-func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode string) (*TokenPair, *User, error) {
+func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, email, username, invitationCode, referralCode string) (*TokenPair, *User, error) {
 	// 检查 refreshTokenCache 是否可用
 	if s.refreshTokenCache == nil {
 		return nil, nil, errors.New("refresh token cache not configured")
@@ -631,6 +648,13 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					}
 					user = newUser
 					s.assignDefaultSubscriptions(ctx, user.ID)
+
+					// 绑定推荐人（如果提供了推荐码且返佣系统已启用）
+					if referralCode != "" && s.referralService != nil && s.referralService.IsEnabled(ctx) {
+						if err := s.referralService.BindReferrer(ctx, user.ID, referralCode); err != nil {
+							logger.LegacyPrintf("service.auth", "[Auth] Failed to bind referrer for oauth user %d: %v", user.ID, err)
+						}
+					}
 				}
 			} else {
 				if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -650,6 +674,13 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					if invitationRedeemCode != nil {
 						if err := s.redeemRepo.Use(ctx, invitationRedeemCode.ID, user.ID); err != nil {
 							return nil, nil, ErrInvitationCodeInvalid
+						}
+					}
+
+					// 绑定推荐人（如果提供了推荐码且返佣系统已启用）
+					if referralCode != "" && s.referralService != nil && s.referralService.IsEnabled(ctx) {
+						if err := s.referralService.BindReferrer(ctx, user.ID, referralCode); err != nil {
+							logger.LegacyPrintf("service.auth", "[Auth] Failed to bind referrer for oauth user %d: %v", user.ID, err)
 						}
 					}
 				}

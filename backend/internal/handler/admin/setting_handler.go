@@ -200,6 +200,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PaymentCancelRateLimitWindow:         paymentCfg.CancelRateLimitWindow,
 		PaymentCancelRateLimitUnit:           paymentCfg.CancelRateLimitUnit,
 		PaymentCancelRateLimitMode:           paymentCfg.CancelRateLimitMode,
+		ReferralEnabled:                      settings.ReferralEnabled,
+		ReferralCommissionRate:               settings.ReferralCommissionRate,
 	})
 }
 
@@ -341,6 +343,10 @@ type UpdateSettingsRequest struct {
 	PaymentCancelRateLimitWindow  *int    `json:"payment_cancel_rate_limit_window"`
 	PaymentCancelRateLimitUnit    *string `json:"payment_cancel_rate_limit_unit"`
 	PaymentCancelRateLimitMode    *string `json:"payment_cancel_rate_limit_window_mode"`
+
+	// Referral/Commission system
+	ReferralEnabled        bool    `json:"referral_enabled"`
+	ReferralCommissionRate float64 `json:"referral_commission_rate"`
 }
 
 // UpdateSettings 更新系统设置
@@ -782,6 +788,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	// Referral commission rate validation
+	if req.ReferralCommissionRate < 0 || req.ReferralCommissionRate > 1 {
+		response.BadRequest(c, "Referral commission rate must be between 0 and 1")
+		return
+	}
+
 	settings := &service.SystemSettings{
 		RegistrationEnabled:              req.RegistrationEnabled,
 		EmailVerifyEnabled:               req.EmailVerifyEnabled,
@@ -927,6 +939,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AccountQuotaNotifyEmails
 		}(),
+		ReferralEnabled:        req.ReferralEnabled,
+		ReferralCommissionRate: req.ReferralCommissionRate,
 	}
 
 	if err := h.settingService.UpdateSettings(c.Request.Context(), settings); err != nil {
@@ -1100,6 +1114,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		PaymentCancelRateLimitWindow:         updatedPaymentCfg.CancelRateLimitWindow,
 		PaymentCancelRateLimitUnit:           updatedPaymentCfg.CancelRateLimitUnit,
 		PaymentCancelRateLimitMode:           updatedPaymentCfg.CancelRateLimitMode,
+		ReferralEnabled:                      updatedSettings.ReferralEnabled,
+		ReferralCommissionRate:               updatedSettings.ReferralCommissionRate,
 	})
 }
 
@@ -1391,6 +1407,13 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if !equalNotifyEmailEntries(before.AccountQuotaNotifyEmails, after.AccountQuotaNotifyEmails) {
 		changed = append(changed, "account_quota_notify_emails")
+	}
+	// Referral/Commission
+	if before.ReferralEnabled != after.ReferralEnabled {
+		changed = append(changed, "referral_enabled")
+	}
+	if before.ReferralCommissionRate != after.ReferralCommissionRate {
+		changed = append(changed, "referral_commission_rate")
 	}
 	return changed
 }

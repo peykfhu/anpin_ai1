@@ -157,6 +157,10 @@ type SystemSettings struct {
 	BalanceLowNotifyRechargeURL string             `json:"balance_low_notify_recharge_url"`
 	AccountQuotaNotifyEnabled   bool               `json:"account_quota_notify_enabled"`
 	AccountQuotaNotifyEmails    []NotifyEmailEntry `json:"account_quota_notify_emails"`
+
+	// Referral/Commission system
+	ReferralEnabled        bool    `json:"referral_enabled"`
+	ReferralCommissionRate float64 `json:"referral_commission_rate"`
 }
 
 type DefaultSubscriptionSetting struct {

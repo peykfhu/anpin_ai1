@@ -221,6 +221,17 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		"creditedAmount": o.Amount,
 		"payAmount":      o.PayAmount,
 	})
+
+	// Process referral commission asynchronously (non-blocking)
+	if s.referralService != nil {
+		orderIDStr := strconv.FormatInt(o.ID, 10)
+		go func() {
+			if err := s.referralService.ProcessCommission(context.Background(), o.UserID, orderIDStr, o.Amount); err != nil {
+				slog.Error("referral commission processing failed", "orderID", o.ID, "userID", o.UserID, "error", err)
+			}
+		}()
+	}
+
 	return nil
 }
 

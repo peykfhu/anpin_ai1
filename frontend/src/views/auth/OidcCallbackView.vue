@@ -101,6 +101,7 @@ const isSubmitting = ref(false)
 const invitationError = ref('')
 const redirectTo = ref('/dashboard')
 const providerName = ref('OIDC')
+const referralCode = ref('')
 
 function parseFragmentParams(): URLSearchParams {
   const raw = typeof window !== 'undefined' ? window.location.hash : ''
@@ -137,7 +138,8 @@ async function handleSubmitInvitation() {
   try {
     const tokenData = await completeOIDCOAuthRegistration(
       pendingOAuthToken.value,
-      invitationCode.value.trim()
+      invitationCode.value.trim(),
+      referralCode.value || undefined
     )
     if (tokenData.refresh_token) {
       localStorage.setItem('refresh_token', tokenData.refresh_token)
@@ -174,6 +176,7 @@ onMounted(async () => {
     if (error === 'invitation_required') {
       pendingOAuthToken.value = params.get('pending_oauth_token') || ''
       redirectTo.value = sanitizeRedirectPath(params.get('redirect'))
+      referralCode.value = params.get('referral_code') || ''
       if (!pendingOAuthToken.value) {
         errorMessage.value = t('auth.oidc.invalidPendingToken')
         appStore.showError(errorMessage.value)

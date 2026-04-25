@@ -92,6 +92,7 @@ func ProvideHandlers(
 	totpHandler *TotpHandler,
 	paymentHandler *PaymentHandler,
 	paymentWebhookHandler *PaymentWebhookHandler,
+	referralHandler *ReferralHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -110,6 +111,7 @@ func ProvideHandlers(
 		Totp:           totpHandler,
 		Payment:        paymentHandler,
 		PaymentWebhook: paymentWebhookHandler,
+		Referral:       referralHandler,
 	}
 }
 
@@ -129,6 +131,7 @@ var ProviderSet = wire.NewSet(
 	ProvideSettingHandler,
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
+	NewReferralHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

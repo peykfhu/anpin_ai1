@@ -165,10 +165,16 @@ type PaymentService struct {
 	configService   *PaymentConfigService
 	userRepo        UserRepository
 	groupRepo       GroupRepository
+	referralService *ReferralService
 }
 
-func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository) *PaymentService {
-	return &PaymentService{entClient: entClient, registry: registry, loadBalancer: loadBalancer, redeemService: redeemService, subscriptionSvc: subscriptionSvc, configService: configService, userRepo: userRepo, groupRepo: groupRepo}
+func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, referralSvc *ReferralService) *PaymentService {
+	return &PaymentService{entClient: entClient, registry: registry, loadBalancer: loadBalancer, redeemService: redeemService, subscriptionSvc: subscriptionSvc, configService: configService, userRepo: userRepo, groupRepo: groupRepo, referralService: referralSvc}
+}
+
+// SetReferralService injects the referral service for commission processing (avoids circular dependency in Wire)
+func (s *PaymentService) SetReferralService(rs *ReferralService) {
+	s.referralService = rs
 }
 
 // --- Provider Registry ---

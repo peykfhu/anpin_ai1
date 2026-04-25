@@ -634,6 +634,10 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 	updates[SettingKeyAccountQuotaNotifyEnabled] = strconv.FormatBool(settings.AccountQuotaNotifyEnabled)
 	updates[SettingKeyAccountQuotaNotifyEmails] = MarshalNotifyEmails(settings.AccountQuotaNotifyEmails)
 
+	// Referral/Commission system
+	updates["referral_enabled"] = strconv.FormatBool(settings.ReferralEnabled)
+	updates["referral_commission_rate"] = strconv.FormatFloat(settings.ReferralCommissionRate, 'f', 8, 64)
+
 	err = s.settingRepo.SetMultiple(ctx, updates)
 	if err == nil {
 		// 先使 inflight singleflight 失效，再刷新缓存，缩小旧值覆盖新值的竞态窗口
@@ -1278,6 +1282,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	if result.AccountQuotaNotifyEmails == nil {
 		result.AccountQuotaNotifyEmails = []NotifyEmailEntry{}
+	}
+
+	// Referral/Commission system
+	result.ReferralEnabled = settings["referral_enabled"] != "false" // 默认启用
+	if v, err := strconv.ParseFloat(settings["referral_commission_rate"], 64); err == nil && v >= 0 && v <= 1 {
+		result.ReferralCommissionRate = v
+	} else {
+		result.ReferralCommissionRate = 0.10 // 默认 10%
 	}
 
 	return result

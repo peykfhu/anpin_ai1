@@ -131,6 +131,11 @@ func (h *AuthHandler) OIDCOAuthStart(c *gin.Context) {
 	oidcSetCookie(c, oidcOAuthStateCookieName, encodeCookieValue(state), oidcOAuthCookieMaxAgeSec, secureCookie)
 	oidcSetCookie(c, oidcOAuthRedirectCookie, encodeCookieValue(redirectTo), oidcOAuthCookieMaxAgeSec, secureCookie)
 
+	// 持久化推荐码到 cookie（通过 OAuth 重定向流程传递）
+	if refCode := strings.TrimSpace(c.Query("referral_code")); refCode != "" {
+		oidcSetCookie(c, "referral_code", encodeCookieValue(refCode), oidcOAuthCookieMaxAgeSec, secureCookie)
+	}
+
 	codeChallenge := ""
 	if cfg.UsePKCE {
 		verifier, genErr := oauth.GenerateCodeVerifier()
@@ -199,6 +204,7 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 		oidcClearCookie(c, oidcOAuthVerifierCookie, secureCookie)
 		oidcClearCookie(c, oidcOAuthRedirectCookie, secureCookie)
 		oidcClearCookie(c, oidcOAuthNonceCookie, secureCookie)
+		oidcClearCookie(c, "referral_code", secureCookie)
 	}()
 
 	expectedState, err := readCookieDecoded(c, oidcOAuthStateCookieName)
@@ -314,8 +320,11 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 		oidcFallbackUsername(subject),
 	)
 
+	// 从 cookie 读取推荐码
+	referralCode, _ := readCookieDecoded(c, "referral_code")
+
 	// 传入空邀请码；如果需要邀请码，服务层返回 ErrOAuthInvitationRequired
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "")
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "", referralCode)
 	if err != nil {
 		if errors.Is(err, service.ErrOAuthInvitationRequired) {
 			pendingToken, tokenErr := h.authService.CreatePendingOAuthToken(email, username)
@@ -327,6 +336,9 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 			fragment.Set("error", "invitation_required")
 			fragment.Set("pending_oauth_token", pendingToken)
 			fragment.Set("redirect", redirectTo)
+			if referralCode != "" {
+				fragment.Set("referral_code", referralCode)
+			}
 			redirectWithFragment(c, frontendCallback, fragment)
 			return
 		}
@@ -346,6 +358,7 @@ func (h *AuthHandler) OIDCOAuthCallback(c *gin.Context) {
 type completeOIDCOAuthRequest struct {
 	PendingOAuthToken string `json:"pending_oauth_token" binding:"required"`
 	InvitationCode    string `json:"invitation_code"     binding:"required"`
+	ReferralCode      string `json:"referral_code"`
 }
 
 // CompleteOIDCOAuthRegistration completes a pending OAuth registration by validating
@@ -364,7 +377,7 @@ func (h *AuthHandler) CompleteOIDCOAuthRegistration(c *gin.Context) {
 		return
 	}
 
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode)
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode, req.ReferralCode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

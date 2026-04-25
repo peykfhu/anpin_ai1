@@ -144,6 +144,10 @@ export interface SystemSettings {
   balance_low_notify_recharge_url: string
   account_quota_notify_enabled: boolean
   account_quota_notify_emails: NotifyEmailEntry[]
+
+  // Referral/Commission system
+  referral_enabled: boolean
+  referral_commission_rate: number
 }
 
 export interface UpdateSettingsRequest {
@@ -251,6 +255,9 @@ export interface UpdateSettingsRequest {
   balance_low_notify_recharge_url?: string
   account_quota_notify_enabled?: boolean
   account_quota_notify_emails?: NotifyEmailEntry[]
+  // Referral/Commission system
+  referral_enabled?: boolean
+  referral_commission_rate?: number
 }
 
 /**

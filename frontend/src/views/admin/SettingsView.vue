@@ -891,6 +891,51 @@
               </div>
               <Toggle v-model="form.invitation_code_enabled" />
             </div>
+
+            <!-- Referral/Commission System -->
+            <div
+              class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <div>
+                <label class="font-medium text-gray-900 dark:text-white">{{
+                  t('admin.settings.registration.referral')
+                }}</label>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.registration.referralHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.referral_enabled" />
+            </div>
+            <!-- Referral Commission Tiers - Only show when referral is enabled -->
+            <div
+              v-if="form.referral_enabled"
+              class="border-t border-gray-100 pt-4 dark:border-dark-700"
+            >
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('admin.settings.registration.referralCommissionRate') }}
+              </label>
+              <div class="mt-2 grid grid-cols-3 gap-3">
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-700/30 dark:bg-amber-900/10">
+                  <p class="text-xs font-medium text-amber-700 dark:text-amber-400">{{ t('admin.settings.registration.referralTierBronze', '青铜') }}</p>
+                  <p class="mt-1 text-lg font-bold text-amber-600 dark:text-amber-400">10%</p>
+                  <p class="mt-0.5 text-xs text-amber-600/70 dark:text-amber-400/60">{{ t('admin.settings.registration.referralTierBronzeRange', '月充值 < $500') }}</p>
+                </div>
+                <div class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-700/30 dark:bg-blue-900/10">
+                  <p class="text-xs font-medium text-blue-700 dark:text-blue-400">{{ t('admin.settings.registration.referralTierSilver', '白银') }}</p>
+                  <p class="mt-1 text-lg font-bold text-blue-600 dark:text-blue-400">12%</p>
+                  <p class="mt-0.5 text-xs text-blue-600/70 dark:text-blue-400/60">{{ t('admin.settings.registration.referralTierSilverRange', '$500 – $3,000') }}</p>
+                </div>
+                <div class="rounded-lg border border-violet-200 bg-violet-50 p-3 dark:border-violet-700/30 dark:bg-violet-900/10">
+                  <p class="text-xs font-medium text-violet-700 dark:text-violet-400">{{ t('admin.settings.registration.referralTierGold', '黄金') }}</p>
+                  <p class="mt-1 text-lg font-bold text-violet-600 dark:text-violet-400">15%</p>
+                  <p class="mt-0.5 text-xs text-violet-600/70 dark:text-violet-400/60">{{ t('admin.settings.registration.referralTierGoldRange', '月充值 > $3,000') }}</p>
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.registration.referralCommissionRateHint') }}
+              </p>
+            </div>
+
             <!-- Password Reset - Only show when email verification is enabled -->
             <div
               v-if="form.email_verify_enabled"
@@ -3155,7 +3200,10 @@ const form = reactive<SettingsForm>({
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: '',
   account_quota_notify_enabled: false,
-  account_quota_notify_emails: [] as NotifyEmailEntry[]
+  account_quota_notify_emails: [] as NotifyEmailEntry[],
+  // Referral/Commission system
+  referral_enabled: true,
+  referral_commission_rate: 0.10,
 })
 
 // Proxies for web search emulation ProxySelector
@@ -3838,6 +3886,9 @@ async function saveSettings() {
       balance_low_notify_recharge_url: (form.balance_low_notify_recharge_url = form.balance_low_notify_recharge_url || currentOrigin),
       account_quota_notify_enabled: form.account_quota_notify_enabled,
       account_quota_notify_emails: (form.account_quota_notify_emails || []).filter((e) => e.email.trim() !== ''),
+      // Referral/Commission system
+      referral_enabled: form.referral_enabled,
+      referral_commission_rate: Number(form.referral_commission_rate) || 0,
     }
 
     const updated = await adminAPI.settings.updateSettings(payload)

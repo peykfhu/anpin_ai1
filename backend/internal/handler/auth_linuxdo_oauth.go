@@ -91,6 +91,11 @@ func (h *AuthHandler) LinuxDoOAuthStart(c *gin.Context) {
 	setCookie(c, linuxDoOAuthStateCookieName, encodeCookieValue(state), linuxDoOAuthCookieMaxAgeSec, secureCookie)
 	setCookie(c, linuxDoOAuthRedirectCookie, encodeCookieValue(redirectTo), linuxDoOAuthCookieMaxAgeSec, secureCookie)
 
+	// 持久化推荐码到 cookie（通过 OAuth 重定向流程传递）
+	if refCode := strings.TrimSpace(c.Query("referral_code")); refCode != "" {
+		setCookie(c, "referral_code", encodeCookieValue(refCode), linuxDoOAuthCookieMaxAgeSec, secureCookie)
+	}
+
 	codeChallenge := ""
 	if cfg.UsePKCE {
 		verifier, err := oauth.GenerateCodeVerifier()
@@ -148,6 +153,7 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		clearCookie(c, linuxDoOAuthStateCookieName, secureCookie)
 		clearCookie(c, linuxDoOAuthVerifierCookie, secureCookie)
 		clearCookie(c, linuxDoOAuthRedirectCookie, secureCookie)
+		clearCookie(c, "referral_code", secureCookie)
 	}()
 
 	expectedState, err := readCookieDecoded(c, linuxDoOAuthStateCookieName)
@@ -211,8 +217,11 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 		email = linuxDoSyntheticEmail(subject)
 	}
 
+	// 从 cookie 读取推荐码
+	referralCode, _ := readCookieDecoded(c, "referral_code")
+
 	// 传入空邀请码；如果需要邀请码，服务层返回 ErrOAuthInvitationRequired
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "")
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, "", referralCode)
 	if err != nil {
 		if errors.Is(err, service.ErrOAuthInvitationRequired) {
 			pendingToken, tokenErr := h.authService.CreatePendingOAuthToken(email, username)
@@ -224,6 +233,9 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 			fragment.Set("error", "invitation_required")
 			fragment.Set("pending_oauth_token", pendingToken)
 			fragment.Set("redirect", redirectTo)
+			if referralCode != "" {
+				fragment.Set("referral_code", referralCode)
+			}
 			redirectWithFragment(c, frontendCallback, fragment)
 			return
 		}
@@ -244,6 +256,7 @@ func (h *AuthHandler) LinuxDoOAuthCallback(c *gin.Context) {
 type completeLinuxDoOAuthRequest struct {
 	PendingOAuthToken string `json:"pending_oauth_token" binding:"required"`
 	InvitationCode    string `json:"invitation_code"     binding:"required"`
+	ReferralCode      string `json:"referral_code"`
 }
 
 // CompleteLinuxDoOAuthRegistration completes a pending OAuth registration by validating
@@ -262,7 +275,7 @@ func (h *AuthHandler) CompleteLinuxDoOAuthRegistration(c *gin.Context) {
 		return
 	}
 
-	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode)
+	tokenPair, _, err := h.authService.LoginOrRegisterOAuthWithTokenPair(c.Request.Context(), email, username, req.InvitationCode, req.ReferralCode)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

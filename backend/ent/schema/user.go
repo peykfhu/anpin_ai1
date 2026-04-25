@@ -88,6 +88,16 @@ func (User) Fields() []ent.Field {
 		field.Float("total_recharged").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0),
+
+		// 返佣系统字段
+		field.String("referral_code").
+			MaxLen(32).
+			Default("").
+			Comment("用户的专属邀请码"),
+		field.Int("referred_by").
+			Optional().
+			Nillable().
+			Comment("邀请人用户ID"),
 	}
 }
 
@@ -104,6 +114,11 @@ func (User) Edges() []ent.Edge {
 		edge.To("attribute_values", UserAttributeValue.Type),
 		edge.To("promo_code_usages", PromoCodeUsage.Type),
 		edge.To("payment_orders", PaymentOrder.Type),
+		// 返佣系统边
+		edge.To("referral_records_as_referrer", ReferralRecord.Type),
+		edge.To("referral_records_as_invitee", ReferralRecord.Type),
+		edge.To("referral_commission_logs", CommissionLog.Type),
+		edge.To("invitee_commission_logs", CommissionLog.Type),
 	}
 }
 
@@ -112,5 +127,6 @@ func (User) Indexes() []ent.Index {
 		// email 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
 		index.Fields("deleted_at"),
+		index.Fields("referral_code"),
 	}
 }

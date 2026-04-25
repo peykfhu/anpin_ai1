@@ -91,6 +91,16 @@ func RegisterUserRoutes(
 			redeem.GET("/history", h.Redeem.GetHistory)
 		}
 
+		// 推广返佣系统
+		referral := authenticated.Group("/user/referral")
+		{
+			referral.GET("/info", h.Referral.GetReferralInfo)
+			referral.POST("/generate-code", h.Referral.GenerateReferralCode)
+			referral.GET("/invites", h.Referral.GetInviteRecords)
+			referral.GET("/commissions", h.Referral.GetCommissionRecords)
+			referral.POST("/withdraw", h.Referral.WithdrawCommission)
+		}
+
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
 		{

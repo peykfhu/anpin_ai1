@@ -343,17 +343,22 @@ export async function resetPassword(request: ResetPasswordRequest): Promise<Rese
  */
 export async function completeLinuxDoOAuthRegistration(
   pendingOAuthToken: string,
-  invitationCode: string
+  invitationCode: string,
+  referralCode?: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number; token_type: string }> {
+  const payload: Record<string, string> = {
+    pending_oauth_token: pendingOAuthToken,
+    invitation_code: invitationCode
+  }
+  if (referralCode) {
+    payload.referral_code = referralCode
+  }
   const { data } = await apiClient.post<{
     access_token: string
     refresh_token: string
     expires_in: number
     token_type: string
-  }>('/auth/oauth/linuxdo/complete-registration', {
-    pending_oauth_token: pendingOAuthToken,
-    invitation_code: invitationCode
-  })
+  }>('/auth/oauth/linuxdo/complete-registration', payload)
   return data
 }
 
@@ -365,17 +370,22 @@ export async function completeLinuxDoOAuthRegistration(
  */
 export async function completeOIDCOAuthRegistration(
   pendingOAuthToken: string,
-  invitationCode: string
+  invitationCode: string,
+  referralCode?: string
 ): Promise<{ access_token: string; refresh_token: string; expires_in: number; token_type: string }> {
+  const payload: Record<string, string> = {
+    pending_oauth_token: pendingOAuthToken,
+    invitation_code: invitationCode
+  }
+  if (referralCode) {
+    payload.referral_code = referralCode
+  }
   const { data } = await apiClient.post<{
     access_token: string
     refresh_token: string
     expires_in: number
     token_type: string
-  }>('/auth/oauth/oidc/complete-registration', {
-    pending_oauth_token: pendingOAuthToken,
-    invitation_code: invitationCode
-  })
+  }>('/auth/oauth/oidc/complete-registration', payload)
   return data
 }
 
