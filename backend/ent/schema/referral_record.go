@@ -32,8 +32,8 @@ func (ReferralRecord) Mixin() []ent.Mixin {
 
 func (ReferralRecord) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int("referrer_id"),
-		field.Int("invitee_id").
+		field.Int64("referrer_id"),
+		field.Int64("invitee_id").
 			Unique(),
 		field.String("referral_code").
 			MaxLen(32),

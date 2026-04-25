@@ -94,7 +94,7 @@ func (User) Fields() []ent.Field {
 			MaxLen(32).
 			Default("").
 			Comment("用户的专属邀请码"),
-		field.Int("referred_by").
+		field.Int64("referred_by").
 			Optional().
 			Nillable().
 			Comment("邀请人用户ID"),

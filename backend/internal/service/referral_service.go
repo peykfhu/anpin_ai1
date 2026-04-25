@@ -129,7 +129,7 @@ func (s *ReferralService) getCommissionRateByMonthlyRecharge(monthlyRecharge flo
 
 // getInviteeMonthlyRecharge calculates the invitee's total recharge in the current calendar month
 // by summing recharge_amount from commission logs (excluding withdrawn entries).
-func (s *ReferralService) getInviteeMonthlyRecharge(ctx context.Context, inviteeID int) float64 {
+func (s *ReferralService) getInviteeMonthlyRecharge(ctx context.Context, inviteeID int64) float64 {
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 
@@ -169,7 +169,7 @@ func generateCode() string {
 
 // GetReferralInfo returns the referral dashboard info for a user
 func (s *ReferralService) GetReferralInfo(ctx context.Context, userID int64) (*ReferralInfo, error) {
-	u, err := s.entClient.User.Get(ctx, int(userID))
+	u, err := s.entClient.User.Get(ctx, userID)
 	if err != nil {
 		return nil, ErrUserNotFound
 	}
@@ -179,7 +179,7 @@ func (s *ReferralService) GetReferralInfo(ctx context.Context, userID int64) (*R
 
 	// Count invitees
 	totalInvitees, err := s.entClient.ReferralRecord.Query().
-		Where(referralrecord.ReferrerID(int(userID))).
+		Where(referralrecord.ReferrerID(userID)).
 		Count(ctx)
 	if err != nil {
 		totalInvitees = 0
@@ -188,7 +188,7 @@ func (s *ReferralService) GetReferralInfo(ctx context.Context, userID int64) (*R
 	// Sum total commission and total recharged from referral records
 	var totalCommission, totalRecharged float64
 	records, err := s.entClient.ReferralRecord.Query().
-		Where(referralrecord.ReferrerID(int(userID))).
+		Where(referralrecord.ReferrerID(userID)).
 		All(ctx)
 	if err == nil {
 		for _, r := range records {
@@ -201,7 +201,7 @@ func (s *ReferralService) GetReferralInfo(ctx context.Context, userID int64) (*R
 	// We track withdrawals via commission logs with status "withdrawn"
 	withdrawnLogs, err := s.entClient.CommissionLog.Query().
 		Where(
-			commissionlog.ReferrerID(int(userID)),
+			commissionlog.ReferrerID(userID),
 			commissionlog.Status("withdrawn"),
 		).All(ctx)
 	var withdrawn float64
@@ -236,7 +236,7 @@ func (s *ReferralService) GenerateReferralCode(ctx context.Context, userID int64
 		code = generateCode()
 	}
 
-	_, err := s.entClient.User.UpdateOneID(int(userID)).SetReferralCode(code).Save(ctx)
+	_, err := s.entClient.User.UpdateOneID(userID).SetReferralCode(code).Save(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to save referral code: %w", err)
 	}
@@ -258,13 +258,13 @@ func (s *ReferralService) BindReferrer(ctx context.Context, inviteeID int64, ref
 		return nil // Don't fail registration if code is invalid
 	}
 
-	if int64(referrer.ID) == inviteeID {
+	if referrer.ID == inviteeID {
 		return nil // Silently ignore self-referral
 	}
 
 	// Check if invitee already has a referrer
 	exists, _ := s.entClient.ReferralRecord.Query().
-		Where(referralrecord.InviteeID(int(inviteeID))).
+		Where(referralrecord.InviteeID(inviteeID)).
 		Exist(ctx)
 	if exists {
 		return nil // Already bound
@@ -273,7 +273,7 @@ func (s *ReferralService) BindReferrer(ctx context.Context, inviteeID int64, ref
 	// Create referral record
 	_, err = s.entClient.ReferralRecord.Create().
 		SetReferrerID(referrer.ID).
-		SetInviteeID(int(inviteeID)).
+		SetInviteeID(inviteeID).
 		SetReferralCode(referralCode).
 		SetStatus("active").
 		Save(ctx)
@@ -283,7 +283,7 @@ func (s *ReferralService) BindReferrer(ctx context.Context, inviteeID int64, ref
 	}
 
 	// Update invitee's referred_by field
-	s.entClient.User.UpdateOneID(int(inviteeID)).SetReferredBy(referrer.ID).Save(ctx)
+	s.entClient.User.UpdateOneID(inviteeID).SetReferredBy(referrer.ID).Save(ctx)
 
 	slog.Info("referral binding created", "referrerID", referrer.ID, "inviteeID", inviteeID, "code", referralCode)
 	return nil
@@ -301,7 +301,7 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 	// Find the referral record for this invitee
 	record, err := s.entClient.ReferralRecord.Query().
 		Where(
-			referralrecord.InviteeID(int(inviteeID)),
+			referralrecord.InviteeID(inviteeID),
 			referralrecord.Status("active"),
 		).
 		Only(ctx)
@@ -310,7 +310,7 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 	}
 
 	commissionRate := s.getCommissionRateByMonthlyRecharge(
-		s.getInviteeMonthlyRecharge(ctx, int(inviteeID)) + rechargeAmount,
+		s.getInviteeMonthlyRecharge(ctx, inviteeID) + rechargeAmount,
 	)
 	commissionAmount := rechargeAmount * commissionRate
 
@@ -318,7 +318,7 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 	exists, _ := s.entClient.CommissionLog.Query().
 		Where(
 			commissionlog.ReferrerID(record.ReferrerID),
-			commissionlog.InviteeID(int(inviteeID)),
+			commissionlog.InviteeID(inviteeID),
 			commissionlog.OrderID(orderID),
 		).Exist(ctx)
 	if exists {
@@ -328,7 +328,7 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 	// Create commission log
 	_, err = s.entClient.CommissionLog.Create().
 		SetReferrerID(record.ReferrerID).
-		SetInviteeID(int(inviteeID)).
+		SetInviteeID(inviteeID).
 		SetOrderID(orderID).
 		SetRechargeAmount(rechargeAmount).
 		SetCommissionRate(commissionRate).
@@ -360,7 +360,7 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 // GetInviteRecords returns paginated invite records for a referrer
 func (s *ReferralService) GetInviteRecords(ctx context.Context, userID int64, params pagination.PaginationParams) ([]InviteRecord, *pagination.PaginationResult, error) {
 	query := s.entClient.ReferralRecord.Query().
-		Where(referralrecord.ReferrerID(int(userID)))
+		Where(referralrecord.ReferrerID(userID))
 
 	total, err := query.Clone().Count(ctx)
 	if err != nil {
@@ -415,7 +415,7 @@ func (s *ReferralService) GetInviteRecords(ctx context.Context, userID int64, pa
 func (s *ReferralService) GetCommissionRecords(ctx context.Context, userID int64, params pagination.PaginationParams) ([]CommissionRecord, *pagination.PaginationResult, error) {
 	query := s.entClient.CommissionLog.Query().
 		Where(
-			commissionlog.ReferrerID(int(userID)),
+			commissionlog.ReferrerID(userID),
 			commissionlog.StatusNEQ("withdrawn"),
 		)
 
@@ -489,8 +489,8 @@ func (s *ReferralService) WithdrawCommission(ctx context.Context, userID int64, 
 
 	// Record withdrawal as a commission log entry with status "withdrawn"
 	_, err = s.entClient.CommissionLog.Create().
-		SetReferrerID(int(userID)).
-		SetInviteeID(int(userID)). // self reference for withdrawal record
+		SetReferrerID(userID).
+		SetInviteeID(userID). // self reference for withdrawal record
 		SetOrderID(fmt.Sprintf("withdraw_%d_%d", userID, time.Now().UnixMilli())).
 		SetRechargeAmount(0).
 		SetCommissionRate(0).

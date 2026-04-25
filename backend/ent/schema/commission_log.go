@@ -34,9 +34,9 @@ func (CommissionLog) Mixin() []ent.Mixin {
 
 func (CommissionLog) Fields() []ent.Field {
 	return []ent.Field{
-		field.Int("referrer_id").
+		field.Int64("referrer_id").
 			Comment("推荐人用户ID"),
-		field.Int("invitee_id").
+		field.Int64("invitee_id").
 			Comment("被邀请人用户ID"),
 		field.String("order_id").
 			MaxLen(64).

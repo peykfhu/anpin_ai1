@@ -21,6 +21,12 @@ jobs:
       - name: Verify Go version
         run: |
           go version | grep -q 'go1.26.2'
+      - name: Install tools & generate code
+        working-directory: backend
+        run: |
+          go install entgo.io/ent/cmd/ent@latest
+          go install github.com/google/wire/cmd/wire@latest
+          make generate
       - name: Unit tests
         working-directory: backend
         run: make test-unit
@@ -41,6 +47,12 @@ jobs:
       - name: Verify Go version
         run: |
           go version | grep -q 'go1.26.2'
+      - name: Install tools & generate code
+        working-directory: backend
+        run: |
+          go install entgo.io/ent/cmd/ent@latest
+          go install github.com/google/wire/cmd/wire@latest
+          make generate
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
