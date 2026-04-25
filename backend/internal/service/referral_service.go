@@ -162,7 +162,7 @@ func (s *ReferralService) IsEnabled(ctx context.Context) bool {
 // generateCode creates a random alphanumeric referral code
 func generateCode() string {
 	b := make([]byte, referralCodeLength)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	code := strings.ToUpper(hex.EncodeToString(b))[:referralCodeLength]
 	return code
 }
@@ -283,7 +283,9 @@ func (s *ReferralService) BindReferrer(ctx context.Context, inviteeID int64, ref
 	}
 
 	// Update invitee's referred_by field
-	s.entClient.User.UpdateOneID(inviteeID).SetReferredBy(referrer.ID).Save(ctx)
+	if _, err := s.entClient.User.UpdateOneID(inviteeID).SetReferredBy(referrer.ID).Save(ctx); err != nil {
+		slog.Error("failed to update invitee referred_by", "inviteeID", inviteeID, "error", err)
+	}
 
 	slog.Info("referral binding created", "referrerID", referrer.ID, "inviteeID", inviteeID, "code", referralCode)
 	return nil
@@ -341,10 +343,12 @@ func (s *ReferralService) ProcessCommission(ctx context.Context, inviteeID int64
 	}
 
 	// Update referral record totals
-	s.entClient.ReferralRecord.UpdateOneID(record.ID).
+	if _, err := s.entClient.ReferralRecord.UpdateOneID(record.ID).
 		SetTotalCommission(record.TotalCommission + commissionAmount).
 		SetTotalRecharged(record.TotalRecharged + rechargeAmount).
-		Save(ctx)
+		Save(ctx); err != nil {
+		slog.Error("failed to update referral record totals", "recordID", record.ID, "error", err)
+	}
 
 	slog.Info("commission processed",
 		"referrerID", record.ReferrerID,
