@@ -61,8 +61,8 @@ COPY backend/ ./
 # Copy frontend dist from previous stage (must be after backend copy to avoid being overwritten)
 COPY --from=frontend-builder /app/backend/internal/web/dist ./internal/web/dist
 
-# Generate ent and wire code
-RUN go generate ./ent && go generate ./cmd/server
+# Generate ent code (wire_gen.go is committed, no need to regenerate)
+RUN go generate ./ent
 
 # Build the binary (BuildType=release for CI builds, embed frontend)
 # Version precedence: build arg VERSION > cmd/server/VERSION
