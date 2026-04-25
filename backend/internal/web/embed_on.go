@@ -97,20 +97,18 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
-		// Try local override first (data/public/ directory)
-		// This must happen BEFORE the SPA fallback so that new files
-		// placed in data/public/ are served even if not in the embedded FS.
-		if cleanPath != "index.html" && s.tryServeOverride(c, cleanPath) {
-			return
-		}
-
 		// For index.html or SPA routes, serve with injected settings
 		if cleanPath == "index.html" || !s.fileExists(cleanPath) {
 			s.serveIndexHTML(c)
 			return
 		}
 
-		// Serve static files normally from embedded FS
+		// Try local override first
+		if s.tryServeOverride(c, cleanPath) {
+			return
+		}
+
+		// Serve static files normally
 		s.fileServer.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 	}
@@ -268,15 +266,12 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
-		// Try local override first (data/public/ directory)
-		// This must happen BEFORE the SPA fallback so that new files
-		// placed in data/public/ are served even if not in the embedded FS.
-		if cleanPath != "index.html" && tryServeOverrideFile(c, overrideDir, cleanPath) {
-			return
-		}
-
 		if file, err := distFS.Open(cleanPath); err == nil {
 			_ = file.Close()
+			// Try local override first
+			if tryServeOverrideFile(c, overrideDir, cleanPath) {
+				return
+			}
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			c.Abort()
 			return
